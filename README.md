@@ -113,3 +113,5 @@ python app.py
 ```cmd
 http://localhost:5000
 ```
+### ลิงค์สไลด์ของโปรเจ็ค
+**[canva](https://canva.link/xqwamfuizmf5vxs)**
