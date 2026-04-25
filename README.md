@@ -103,6 +103,7 @@ def get_db_connection():
     )
     return conn
 ```
+---
 ### 🔗 Step 5: ทดสอบเปิดเซิร์ฟเวอร์ (Run Local Server)
 เมื่อเตรียมทุกอย่างพร้อมแล้ว รันคำสั่งนี้ใน Terminal:
 ```cmd
