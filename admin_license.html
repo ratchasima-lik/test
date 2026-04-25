@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการสิทธิ์การเข้าใช้งาน</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; padding: 20px; padding-bottom: 80px;}
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; color: #2c3e50; display: block; margin-bottom: 5px;}
+        select, input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; outline: none;}
+        select:focus, input[type="text"]:focus { border-color: #3498db; }
+        
+        button { background-color: #2ecc71; color: white; padding: 12px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; transition: 0.2s;}
+        button:hover { background-color: #27ae60; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #34495e; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        
+        .filter-box { display: flex; gap: 10px; margin-bottom: 15px; margin-top: 40px; background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #eee;}
+        
+        /* 🌟 ปุ่มเพิกถอนลอยขวาล่าง */
+        .floating-revoke-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: none; /* ซ่อนไว้ก่อน */
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+        .floating-revoke-btn:hover { background-color: #c0392b; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0; color:#2c3e50;">🔑 จัดการสิทธิ์การเข้าใช้งานตู้ (Licenses)</h2>
+            <a href="/" style="color: white; background: #34495e; padding: 8px 15px; text-decoration: none; font-weight: bold; border-radius: 5px;">🏠 กลับหน้าหลัก</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}{% for category, message in messages %}<div style="padding: 12px; margin-bottom:20px; background:#d4edda; border-left: 5px solid #28a745; border-radius:4px; color: #155724;">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+
+        <h3 style="color:#2980b9; border-bottom: 2px solid #eee; padding-bottom: 10px;">➕ มอบสิทธิ์การใช้งานใหม่ (เลือกได้หลายตู้)</h3>
+        <form action="/grant_license" method="POST" style="background:#fdfdfd; padding:20px; border-radius:5px; border:1px solid #eaeaea;">
+            <div class="form-group">
+                <label>เลือกผู้ใช้งาน (User):</label>
+                <select name="user_id" required>
+                    {% for u in users %}<option value="{{ u.user_id }}">{{ u.username }} (ID: {{ u.user_id }})</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>เลือกตู้ (กด Ctrl หรือ ลากคลุม เพื่อเลือกหลายตู้พร้อมกัน):</label>
+                <select name="locker_ids" multiple required style="height: 150px;">
+                    {% for l in lockers %}<option value="{{ l.locker_id }}">ตู้ {{ l.locker_id }} ({{ l.location }})</option>{% endfor %}
+                </select>
+            </div>
+            <button type="submit">✅ บันทึกการมอบสิทธิ์</button>
+        </form>
+
+        <div class="filter-box">
+            <input type="text" id="licUserFilter" onkeyup="filterLicenses()" placeholder="🔍 ค้นหาชื่อผู้ใช้...">
+            <input type="text" id="licLockerFilter" onkeyup="filterLicenses()" placeholder="🔍 ค้นหาหมายเลขตู้...">
+        </div>
+        
+        <form action="/revoke_licenses" method="POST">
+            <table id="licTable">
+                <tr>
+                    <th style="width: 50px; text-align: center;"><input type="checkbox" onclick="toggleAll(this)"></th>
+                    <th>ชื่อผู้ใช้งาน (ID)</th>
+                    <th>ตู้หมายเลข</th>
+                    <th>สถานที่</th>
+                </tr>
+                {% for lic in licenses %}
+                <tr>
+                    <td style="text-align: center;">
+                        <input type="checkbox" name="licenses_to_revoke" value="{{ lic.user_id }},{{ lic.locker_id }}" class="lic-checkbox" onchange="toggleRevokeBtn()">
+                    </td>
+                    <td style="font-weight: bold; color: #34495e;">{{ lic.username }} ({{ lic.user_id }})</td>
+                    <td>{{ lic.locker_id }}</td>
+                    <td style="color: gray;">{{ lic.location }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            
+            <button type="submit" id="revokeBtn" class="floating-revoke-btn" onclick="return confirm('แน่ใจหรือไม่ว่าจะเพิกถอนสิทธิ์ที่เลือกทั้งหมด?');">
+                🗑️ เพิกถอนสิทธิ์ที่เลือก
+            </button>
+        </form>
+    </div>
+
+    <script>
+        function toggleAll(source) {
+            let checkboxes = document.querySelectorAll('.lic-checkbox');
+            for(let i=0; i<checkboxes.length; i++) {
+                checkboxes[i].checked = source.checked;
+            }
+            toggleRevokeBtn(); // เรียกเช็กปุ่มลอยด้วย
+        }
+
+        // 🌟 ฟังก์ชันเช็กเพื่อเปิด/ปิด ปุ่มเพิกถอนลอยตัว
+        function toggleRevokeBtn() {
+            let checkboxes = document.querySelectorAll('.lic-checkbox');
+            let isChecked = Array.from(checkboxes).some(cb => cb.checked);
+            let btn = document.getElementById('revokeBtn');
+            if (isChecked) {
+                btn.style.display = 'block';
+                btn.style.animation = 'fadeIn 0.3s';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function filterLicenses() {
+            let uFilter = document.getElementById("licUserFilter").value.toUpperCase();
+            let lFilter = document.getElementById("licLockerFilter").value.toUpperCase();
+            let tr = document.getElementById("licTable").getElementsByTagName("tr");
+            for (let i = 1; i < tr.length; i++) {
+                let uTd = tr[i].getElementsByTagName("td")[1];
+                let lTd = tr[i].getElementsByTagName("td")[2];
+                if (uTd && lTd) {
+                    let uTxt = uTd.textContent || uTd.innerText;
+                    let lTxt = lTd.textContent || lTd.innerText;
+                    tr[i].style.display = (uTxt.toUpperCase().indexOf(uFilter) > -1 && lTxt.toUpperCase().indexOf(lFilter) > -1) ? "" : "none";
+                }
+            }
+        }
+    </script>
+</body>
+</html>

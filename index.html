@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding-bottom: 80px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; background-color: #fff; padding: 15px 20px; border-bottom: 1px solid #ccc; flex-wrap: wrap; gap: 15px;}
+        .header-left { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; }
+        
+        /* สรุปสถานะตู้บน Header */
+        .status-summary { display: flex; gap: 15px; background: #f8f9fa; padding: 8px 15px; border-radius: 8px; border: 1px solid #eee; font-size: 14px; }
+        .stat-item { display: flex; align-items: center; gap: 5px; font-weight: bold; }
+        .stat-avail { color: #2ecc71; }
+        .stat-occ { color: #e74c3c; }
+        .stat-off { color: #95a5a6; }
+
+        /* 🌟 ปรับแต่ง Dropdown Profile */
+        .profile-menu { position: relative; display: inline-block; cursor: pointer; z-index: 50; padding-bottom: 10px; margin-bottom: -10px;}
+        .profile-menu-content { 
+            display: none; 
+            position: absolute; 
+            left: 0; 
+            background-color: #34495e; 
+            min-width: 250px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3); 
+            border-radius: 8px; 
+            overflow: hidden; 
+            top: 100%;
+        }
+        .profile-menu::after { content: ""; position: absolute; top: 100%; left: 0; width: 100%; height: 15px; }
+        .profile-menu:hover .profile-menu-content { display: block; }
+        
+        .profile-menu-content a { color: #ecf0f1; padding: 14px 16px; text-decoration: none; display: block; border-bottom: 1px solid #2c3e50; font-weight: 500; transition: 0.2s; font-size: 15px; }
+        .profile-menu-content a:hover { background-color: #2c3e50; color: #fff;}
+        .profile-menu-content a.danger-text { color: #ff7675; }
+        .profile-menu-content a.danger-text:hover { background-color: #d63031; color: white; }
+
+        .profile-pic { width: 40px; height: 40px; border-radius: 50%; background-color: #007bff; color: white; display: inline-block; vertical-align: middle; margin-right: 10px; text-align: center; line-height: 40px; font-weight: bold; overflow: hidden; border: 2px solid #34495e; }
+        .profile-pic img { width: 100%; height: 100%; object-fit: cover; }
+        .user-info { display: inline-block; vertical-align: middle; }
+        
+        .noti-wrapper { position: relative; display: inline-block; }
+        .noti-bell { font-size: 24px; cursor: pointer; }
+        .badge { position: absolute; top: -5px; right: -10px; background: #e74c3c; color: white; border-radius: 50%; padding: 2px 6px; font-size: 12px; font-weight: bold; }
+        .noti-dropdown { display: none; position: absolute; right: 0; background-color: white; min-width: 280px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 100; border-radius: 8px; max-height: 300px; overflow-y: auto; }
+        .noti-dropdown a { display: block; padding: 12px; border-bottom: 1px solid #eee; text-decoration: none; color: black; font-size: 14px; text-align: left; }
+        
+        .location-section { margin: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        
+        /* ปรับ Layout ตู้ใหม่ เป็น Scroll ซ้าย-ขวา และขยายเต็มพื้นที่ */
+        .locker-grid { 
+            display: flex; 
+            flex-wrap: nowrap; 
+            overflow-x: auto; 
+            gap: 12px; 
+            margin-top: 15px;
+            padding-bottom: 12px; /* เผื่อที่ให้ Scrollbar */
+            scrollbar-width: thin; /* Firefox */
+        }
+        /* แต่ง Scrollbar ให้ดูสมูท */
+        .locker-grid::-webkit-scrollbar { height: 8px; }
+        .locker-grid::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .locker-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .locker-grid::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .locker-card { 
+            flex: 1; /* ดันตู้ให้เต็มความกว้าง */
+            min-width: 110px; /* ขนาดเล็กสุดไม่ให้บีบกันเกินไป */
+            max-width: 200px; /* ขนาดใหญ่สุดกันตู้ยืดน่าเกลียดเวลาตู้มีน้อย */
+            border: 3px solid #ccc; 
+            padding: 15px 5px; 
+            text-align: center; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: transform 0.2s; 
+            box-sizing: border-box; 
+            background: white;
+        }
+        .locker-card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);} /* เปลี่ยนจาก scale เป็นแกน y จะสมูทกว่าใน flexbox */
+        
+        .available { border-color: #2ecc71; background-color: #f0fdf4; } 
+        .occupied { border-color: #e74c3c; background-color: #fff5f5; } 
+        .offline { border-color: #95a5a6; background-color: #f8f9fa; color: gray; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+        .modal-content { background-color: white; margin: 15% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 350px; text-align: center; box-sizing: border-box; box-shadow: 0 5px 15px rgba(0,0,0,0.3);}
+        .btn { padding: 10px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; background: white; width: 48%; font-weight: bold; transition: 0.2s;}
+        .btn-confirm { background: #3498db; color: white; border: none; }
+        
+        .fab-button { position: fixed; bottom: 20px; right: 20px; background-color: #3498db; color: white; padding: 15px 20px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-weight: bold; transition: 0.3s; z-index: 99;}
+        
+        @media (max-width: 768px) { 
+            .noti-dropdown { right: -50px; } 
+            .location-section { margin: 10px; }
+            .header-left { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="profile-menu">
+                <div class="profile-pic">
+                    {% if profile_img %}
+                        <img src="{{ profile_img }}" alt="Profile">
+                    {% else %}
+                        👤
+                    {% endif %}
+                </div>
+                <div class="user-info">
+                    <span style="display: block; font-weight: bold; color: #2c3e50;">{{ username }}</span>
+                    <span style="font-size: 12px; color: #7f8c8d;">ID: {{ "%04d" | format(user_id|int) }} | {{ role }}</span>
+                </div>
+                <div class="profile-menu-content">
+                    {% if role == 'Admin' %}
+                    <a href="/admin_dashboard">📊 แผงควบคุม Admin</a>
+                    <a href="/admin_license">🔑 จัดการสิทธิ์เปิดตู้</a>
+                    <a href="/admin_users">👥 จัดการรายชื่อผู้ใช้งาน</a>
+                    {% endif %}
+                    <a href="/change_password">🔒 เปลี่ยนรหัสผ่าน</a>
+                    <a href="/change_username">📝 เปลี่ยนชื่อบัญชี</a>
+                    <a href="/face_auth">📷 สแกนบันทึกใบหน้า</a>
+                    <a href="#" onclick="document.getElementById('reportModal').style.display='block'">🛠️ แจ้งปัญหาเทคนิค</a>
+                    <a href="#" onclick="alert('เบอร์ติดต่อผู้ดูแลฉุกเฉิน: 02-111-2222 (แผนก IT)')">📞 ติดต่อผู้ดูแลฉุกเฉิน</a>
+                    <a href="/logout" class="danger-text">🚪 ออกจากระบบ</a>
+                </div>
+            </div>
+
+            <div class="status-summary">
+                <div class="stat-item stat-avail">🟢 ว่าง: {{ status_counts['Available'] }}</div>
+                <div class="stat-item stat-occ">🔴 ไม่ว่าง: {{ status_counts['Occupied'] }}</div>
+                <div class="stat-item stat-off">⚪ ออฟไลน์: {{ status_counts['Offline'] }}</div>
+            </div>
+        </div>
+        
+        <div class="noti-wrapper">
+            <div class="noti-bell" onclick="toggleNoti()">
+                🔔 {% if unread_count > 0 %}<span class="badge" id="notiBadge">{{ unread_count }}</span>{% endif %}
+            </div>
+            <div class="noti-dropdown" id="notiDrop">
+                {% if alerts|length == 0 %}<p style="padding:15px; text-align:center; color:gray;">ไม่มีแจ้งเตือน</p>{% endif %}
+                {% for alert in alerts %}
+                <a href="#" onclick="openMsgModal(this)" data-time="{{ alert.time }}" data-title="{{ alert.title }}" data-detail="{{ alert.detail }}">
+                    <b>[{{ alert.title }}]</b><br><small style="color: gray;">{{ alert.time }}</small>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category, message in messages %}<div style="padding: 12px; margin:15px 20px; background:#d4edda; border-radius:4px; color: #155724; text-align:center;">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+
+    {% for location, lockers in grouped_lockers.items() %}
+    <div class="location-section">
+        <h3 style="margin-top:0; color: #2c3e50;">🏢 {{ location }}</h3>
+        <div class="locker-grid">
+            {% for locker in lockers %}
+            <div class="locker-card {{ locker.status.lower() }}" onclick="{% if role == 'Admin' %}openAdminModal('{{ locker.locker_id }}', '{{ locker.status }}', '{{ locker.current_user }}'){% endif %}">
+                <h2 style="margin: 0 0 5px 0;">{{ locker.locker_id }}</h2>
+                <span style="font-weight: bold; font-size: 14px; color: {{ '#2ecc71' if locker.status == 'Available' else '#e74c3c' if locker.status == 'Occupied' else '#95a5a6' }}">{{ locker.status }}</span>
+                {% if role == 'Admin' and locker.status == 'Occupied' and locker.current_user %}
+                <br><small style="color:red; font-size:11px;">({{ locker.current_user }})</small>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <div id="msgModal" class="modal"><div class="modal-content" style="text-align: left;"><h3 id="msgType" style="color:#3498db; margin-top:0;"></h3><p id="msgTime" style="color:gray; font-size:12px;"></p><p id="msgDetail" style="font-size:16px; margin: 20px 0; background: #f8f9fa; padding: 15px; border-radius: 5px;"></p><button class="btn" style="width:100%;" onclick="document.getElementById('msgModal').style.display='none'">ปิด</button></div></div>
+    
+    <div id="adminModal" class="modal"><div class="modal-content"><h3 id="modalLockerId">ล็อกเกอร์ที่: </h3><p id="adminWarning" style="color:red; font-weight:bold; display:none;">⚠️ ตู้นี้ไม่สามารถเปลี่ยนสถานะได้</p><form method="POST" action="/update_locker_status" id="adminForm"><input type="hidden" name="locker_id" id="inputLockerId"><select name="status" id="statusSelect" style="width: 100%; padding: 10px; margin-bottom: 20px; border-radius:5px;"><option value="Available">Available</option><option value="Offline">Offline</option></select><div style="display: flex; justify-content: space-between;"><button type="button" class="btn" onclick="document.getElementById('adminModal').style.display='none'">ยกเลิก</button><button type="submit" id="adminSubmitBtn" class="btn btn-confirm">บันทึก</button></div></form></div></div>
+    
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <h3>🛠️ แจ้งปัญหาการใช้งาน</h3>
+            <form method="POST" action="/report_issue">
+                <textarea name="issue_text" rows="4" style="width: 100%; margin-bottom: 10px; padding:10px; border-radius:5px; box-sizing: border-box; border: 1px solid #ccc;" placeholder="รายละเอียดปัญหา..." required></textarea>
+                <div style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn" onclick="document.getElementById('reportModal').style.display='none'">ยกเลิก</button>
+                    <button type="submit" class="btn btn-confirm">ส่งข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleNoti() {
+            let drop = document.getElementById('notiDrop');
+            drop.style.display = drop.style.display === 'block' ? 'none' : 'block';
+            if(document.getElementById('notiBadge') && drop.style.display === 'block') {
+                document.getElementById('notiBadge').style.display = 'none';
+                fetch('/read_alerts', {method: 'POST'});
+            }
+        }
+        function openMsgModal(element) {
+            document.getElementById('notiDrop').style.display='none';
+            document.getElementById('msgType').innerText = element.getAttribute('data-title');
+            document.getElementById('msgTime').innerText = 'เวลา: ' + element.getAttribute('data-time');
+            document.getElementById('msgDetail').innerText = element.getAttribute('data-detail');
+            document.getElementById('msgModal').style.display = 'block';
+        }
+        function openAdminModal(id, status, currentUser) {
+            document.getElementById('modalLockerId').innerText = 'ล็อกเกอร์หมายเลข: ' + id;
+            document.getElementById('inputLockerId').value = id;
+            if(status === 'Occupied') {
+                document.getElementById('adminWarning').style.display = 'block';
+                document.getElementById('statusSelect').style.display = 'none';
+                document.getElementById('adminSubmitBtn').style.display = 'none';
+            } else {
+                document.getElementById('adminWarning').style.display = 'none';
+                document.getElementById('statusSelect').style.display = 'block';
+                document.getElementById('adminSubmitBtn').style.display = 'block';
+                document.getElementById('statusSelect').value = status;
+            }
+            document.getElementById('adminModal').style.display = 'block';
+        }
+    </script>
+    <a href="/virtual_locker" class="fab-button">📱 หน้าจำลองตู้</a>
+</body>
+</html>

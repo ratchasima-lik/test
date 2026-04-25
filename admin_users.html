@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการผู้ใช้งาน</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        input[type="text"], input[type="password"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white;}
+        .btn-add { background-color: #16a085; width: 100%; }
+        .btn-edit { background-color: #f39c12; }
+        .btn-delete { background-color: #e74c3c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #16a085; color: white; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-sizing: border-box;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0; color:#2c3e50;">👥 จัดการผู้ใช้งานระบบ (User Management)</h2>
+            <a href="/" style="color: white; background: #34495e; padding: 8px 15px; text-decoration: none; font-weight: bold; border-radius: 5px;">🏠 กลับหน้าหลัก</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}{% for category, message in messages %}<div style="padding: 10px; margin-top:15px; background:#d4edda; border-radius:5px; color: #155724;">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+
+        <h3 style="margin-top: 30px;">➕ เพิ่มผู้ใช้งานใหม่</h3>
+        <form action="/admin_users" method="POST" style="background:#f9f9f9; padding:15px; border-radius:5px; border:1px solid #ddd;">
+            <input type="hidden" name="action" value="add">
+            <div class="form-group"><label>User ID (ตัวเลข):</label><input type="number" name="user_id" required></div>
+            <div class="form-group"><label>ชื่อเข้าใช้งาน (Username):</label><input type="text" name="username" required></div>
+            <div class="form-group"><label>รหัสผ่าน (Password):</label><input type="password" name="password" required></div>
+            <div class="form-group">
+                <label>ระดับสิทธิ์ (Role):</label>
+                <select name="role"><option value="User">User</option><option value="Admin">Admin</option></select>
+            </div>
+            <button type="submit" class="btn-add">บันทึกผู้ใช้ใหม่</button>
+        </form>
+
+        <h3 style="margin-top: 30px;">📋 รายชื่อผู้ใช้งานทั้งหมด</h3>
+        <table>
+            <tr><th>User ID</th><th>ชื่อ (Username)</th><th>สิทธิ์ (Role)</th><th style="width: 150px; text-align: center;">จัดการ</th></tr>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.user_id }}</td><td>{{ u.username }}</td><td>{{ u.role }}</td>
+                <td style="text-align: center; display: flex; gap: 5px;">
+                    <button class="btn-edit" onclick="openEditModal('{{ u.user_id }}', '{{ u.username }}', '{{ u.role }}')">แก้ไข</button>
+                    <form action="/admin_users" method="POST" onsubmit="return confirm('⚠️ ลบผู้ใช้นี้จะทำให้ประวัติสิทธิ์การเข้าตู้ถูกลบด้วย ยืนยันหรือไม่?');">
+                        <input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="{{ u.user_id }}">
+                        <button type="submit" class="btn-delete" {% if u.user_id == user_id %}disabled title="ไม่สามารถลบตัวเองได้"{% endif %}>ลบ</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">✏️ แก้ไขข้อมูลผู้ใช้</h3>
+            <form action="/admin_users" method="POST">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="user_id" id="edit_id">
+                <div class="form-group"><label>ชื่อ (Username):</label><input type="text" name="username" id="edit_username" required></div>
+                <div class="form-group"><label>สิทธิ์ (Role):</label><select name="role" id="edit_role"><option value="User">User</option><option value="Admin">Admin</option></select></div>
+                <div class="form-group"><label>รหัสผ่านใหม่ (ปล่อยว่างถ้าไม่ต้องการเปลี่ยน):</label><input type="password" name="password"></div>
+                <div style="display: flex; justify-content: space-between; gap: 10px;">
+                    <button type="button" style="background:#ccc; color:black; width:100%;" onclick="document.getElementById('editModal').style.display='none'">ยกเลิก</button>
+                    <button type="submit" class="btn-edit" style="width:100%;">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openEditModal(id, username, role) {
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_username').value = username;
+            document.getElementById('edit_role').value = role;
+            document.getElementById('editModal').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
